@@ -29,8 +29,10 @@ def parse(i):
 			f.write(r.content)
 		print str(i),url
 
-pool = ThreadPool(4)
-uids = range(2756910000, 2756910000+2000)
+pool = ThreadPool(8)
+start = 2756810000
+length = 10000
+uids = range(start, start+length)
 results = pool.map(parse, uids)
 pool.close()
 pool.join()
