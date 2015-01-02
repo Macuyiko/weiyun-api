@@ -1,9 +1,4 @@
 import requests
-try:
-	from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
-	TOOLBELT_AVAILABLE = True
-except ImportError:
-	TOOLBELT_AVAILABLE = False
 import uuid
 import json
 import time
@@ -14,12 +9,12 @@ import struct
 import binascii
 
 # Change the values below:
-SKEY = '@changeme';
-UIN = '29changeme';
-PTCZ = '97changeme'
-PGV_INFO = 'ssid=s9changeme'
-PGV_PVID = 'changeme'
-EMAIL = 'changeme@changeme.changeme'
+SKEY = '@Aci4ImJF0'
+UIN = '2956912470'
+PTCZ = '97f739d9b2ef812ced8e124937a6902b3c6fe1f2ac007bb847d956e893312e93'
+PGV_INFO = 'ssid=s9869263628'
+PGV_PVID = '4842874884'
+EMAIL = 'macuyiko@gmail.com'
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 file_size = lambda x: os.stat(x).st_size 
@@ -146,7 +141,8 @@ class DirCreate(BaseWeiyun):
 		endpoint = '/wy_web_jsonp.fcg'
 		cmd = 'dir_create'
 		super(DirCreate, self).__init__(endpoint, cmd)
-		self.data["req_body"] = {"ppdir_key": parentparentdirkey,
+		self.data["req_body"] = {
+			"ppdir_key": parentparentdirkey,
 			"pdir_key": parentdirkey,
 			"dir_attr": {"dir_name":dirname, "dir_note":""}}
 
@@ -288,33 +284,36 @@ class FileUpload(BaseWeiyun):
 
 	def send_file(self, filename):
 		a = self.get_response()
+		print a
 		if (a['rsp_body']['file_exist']):
 			return True
-		else:
-			self.data["req_body"]["file_md5"] = ''
-			self.data["req_body"]["file_sha"] = ''
-			self.data["req_body"]["upload_type"] = 1
-			# Delete broken old file
+		elif self.data["req_body"]["upload_type"] == 0:
+			# Delete the broken file first, this is a side effect of trying with hashes first
 			o = BatchFileDelete(
-				[self.data["req_body"]["file_attr"]["file_name"]], 
 				[a['rsp_body']['file_id']],
-				[a['rsp_body']['file_ver']], 
-				[self.parentdirkey], [self.parentparentdirkey])
-			o.get_response()
-			a = self.get_response()
-		#print a
-		url = 'http://' + a['rsp_body']['upload_svr_host']+':'+\
-			str(a['rsp_body']['upload_svr_port']) + '/ftn_handler/'+\
-			'?ver=12345&ukey='+a['rsp_body']['upload_csum']+\
-			'&filekey='+a['rsp_body']['file_key']+'&'
-		headers = HEADERS.copy()
-		headers['origin'] = 'http://www.weiyun.com'
-		data = {'Filename': self.data["req_body"]["file_attr"]["file_name"],
-				'mode': 'flashupload',
-				'Upload': 'Submit Query',
-				'file': ('filename', open(filename, 'rb'), 'application/octet-stream')}
-		r = requests.post(url, headers=headers, files={'file':data['file']})
-		return r
+				[self.data["req_body"]["file_attr"]["file_name"]],
+				[a['rsp_body']['file_ver']],
+				[self.parentdirkey],
+				[self.parentparentdirkey])
+			oo = o.get_response()
+			req = FileUpload(self.data["req_body"]["file_attr"]["file_name"],
+				self.data["req_body"]["file_size"],
+				self.parentdirkey,
+				self.parentparentdirkey)
+			return req.send_file(filename)
+		elif self.data["req_body"]["upload_type"] == 1:
+			url = 'http://' + a['rsp_body']['upload_svr_host']+':'+\
+				str(a['rsp_body']['upload_svr_port']) + '/ftn_handler/'+\
+				'?ver=12345&ukey='+a['rsp_body']['upload_csum']+\
+				'&filekey='+a['rsp_body']['file_key']+'&'
+			headers = HEADERS.copy()
+			headers['origin'] = 'http://www.weiyun.com'
+			data = {'Filename': self.data["req_body"]["file_attr"]["file_name"],
+					'mode': 'flashupload',
+					'file': ('filename', open(filename, 'rb'), 'application/octet-stream'),
+					'Upload': 'Submit Query'}
+			r = requests.post(url, headers=headers, files={'file':data['file']})
+			return r
 
 class ChunkedFileUpload(BaseWeiyun):
 	def __init__(self, filename, filesize, parentdirkey, parentparentdirkey, fmd5, fsha):
